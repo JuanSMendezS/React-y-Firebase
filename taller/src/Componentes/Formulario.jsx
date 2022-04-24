@@ -1,5 +1,6 @@
 import React from 'react'
 import { nanoid } from 'nanoid'
+import { firebase } from '../firebase.js'
 
 const Formulario = () => {
 
@@ -9,11 +10,34 @@ const Formulario = () => {
     const [categoria, setCategoria] = React.useState('')
     const [horasJuego, setHorasJuego] = React.useState('')
     const [jugador, setJugador] = React.useState('')
+    const [estadoJuego, setEstadoJuego] = React.useState('')
+    const [notasJuego, setNotasJuego] = React.useState('')
     const [listajuegos, setListajuegos] = React.useState([])
     const [modoEdicion, setModoEdicion] = React.useState(false)
     const [error, setError] = React.useState(null)
 
-    const guardarjuegos = (e) => {
+    React.useEffect(() => {
+        const obtenerDatos = async () => {
+            try {
+                const dataBase = firebase.firestore
+                const data = await dataBase.collection('Juegos').get()
+                const arrayData = data.docs.map(item => (
+                    {
+                        id: item.id, ...item.data()
+                    }
+                ))
+
+                // console.log(arrayData)
+                setListajuegos(arrayData)
+
+            } catch (error) {
+                console.log(error)
+            }
+        }
+        obtenerDatos()
+    })
+
+    const guardarJuegos = async (e) => {
         e.preventDefault()
 
         if (!juego.trim()) {
@@ -46,10 +70,38 @@ const Formulario = () => {
             return
         }
 
-        setListajuegos([
+        if (!estadoJuego.trim()) {
+            alert('Especifique el estado del juego')
+            setError('Especifique el estado del juego')
+            return
+        }
+
+        if (!notasJuego.trim()) {
+            alert('Coloque algunas notas sobre el juego')
+            setError('Coloque algunas notas sobre el juego')
+            return
+        }
+
+        /**setListajuegos([
             ...listajuegos,
-            { id: nanoid(), nombrejuego: juego, Descripcion: descripcion, Categoria: categoria, TiempoJugado: horasJuego, nombreJugador: jugador }
-        ])
+            {
+                id: nanoid(), nombrejuego: juego, Descripcion: descripcion, Categoria: categoria,
+                TiempoJugado: horasJuego, nombreJugador: jugador, estadoJuego: estadoJuego, notasJuego: notasJuego
+            }
+        ])*/
+
+        const dataBase = firebase.firestore()
+        const nuevoJuego = {
+            nombrejuego: juego,
+            Descripcion: descripcion,
+            Categoria: categoria,
+            TiempoJugado: horasJuego,
+            nombreJugador: jugador,
+            estadoJuego: estadoJuego,
+            notasJuego: notasJuego
+        }
+
+        const data = await dataBase.collection('Juegos').add(nuevoJuego)
 
         e.target.reset()
         setJuego('')
@@ -57,6 +109,8 @@ const Formulario = () => {
         setCategoria('')
         setHorasJuego('')
         setJugador('')
+        setEstadoJuego('')
+        setNotasJuego('')
         setError(null)
     }
 
@@ -66,14 +120,19 @@ const Formulario = () => {
         setCategoria(item.Categoria)
         setHorasJuego(item.TiempoJugado)
         setJugador(item.jugador)
+        setEstadoJuego(item.estadoJuego)
+        setNotasJuego(item.notasJuego)
         setModoEdicion(true)
         setId(item.id)
     }
 
-    const editarFrutas = e => {
+    const editarJuegos = e => {
         e.preventDefault()
         const arrayEditado = listajuegos.map(
-            item => item.id === id ? { id: id, nombrejuego: juego, Descripcion: descripcion, Categoria: categoria, TiempoJugado: horasJuego, nombreJugador: jugador } : item
+            item => item.id === id ? {
+                id: id, nombrejuego: juego, Descripcion: descripcion, Categoria: categoria,
+                TiempoJugado: horasJuego, nombreJugador: jugador, estadoJuego: estadoJuego, notasJuego: notasJuego
+            } : item
         )
         setListajuegos(arrayEditado)
         setId('')
@@ -81,7 +140,9 @@ const Formulario = () => {
         setDescripcion('')
         setCategoria('')
         setHorasJuego('')
+        setEstadoJuego('')
         setJugador('')
+        setNotasJuego('')
     }
 
     const eliminar = id => {
@@ -89,7 +150,7 @@ const Formulario = () => {
         setListajuegos(aux)
     }
 
-    const cancelar = () =>{
+    const cancelar = () => {
         setModoEdicion(false)
         setId('')
         setJuego('')
@@ -97,6 +158,8 @@ const Formulario = () => {
         setCategoria('')
         setHorasJuego('')
         setJugador('')
+        setEstadoJuego('')
+        setNotasJuego('')
         setError(null)
     }
 
@@ -111,7 +174,9 @@ const Formulario = () => {
                         {
                             listajuegos.map((item) => (
                                 <li className='list-group-item' key={item.id}>
-                                    <span className='lead'>{item.nombrejuego}-{item.nombreDescripcion}</span>
+                                    <span className='lead'>{item.nombrejuego}-{item.Descripcion}-{item.Categoria}-{item.TiempoJugado}
+                                        -{item.nombreJugador}-{item.estadoJuego}
+                                    </span>
                                     <button className='btn btn-danger btn-sm float-end mx-2' onClick={() => eliminar(item.id)}>
                                         Eliminar
                                     </button>
@@ -128,7 +193,7 @@ const Formulario = () => {
                         {
                             modoEdicion ? 'Editar datos' : 'Agregar datos'
                         }
-                        <form onSubmit={modoEdicion ? editarFrutas : guardarjuegos}>
+                        <form onSubmit={modoEdicion ? editarJuegos : guardarJuegos}>
                             <input
                                 className='form-control mb-2'
                                 type="text"
@@ -158,6 +223,18 @@ const Formulario = () => {
                                 placeholder='Ingrese el nombre del jugador'
                                 type="text"
                                 onChange={(e) => setJugador(e.target.value)}
+                            />
+                            <input
+                                className='form-control mb-2'
+                                placeholder='Estado del juego (Completado o Sin finalizar)'
+                                type="text"
+                                onChange={(e) => setEstadoJuego(e.target.value)}
+                            />
+                            <input
+                                className='form-control mb-2'
+                                placeholder='Notas o pensamientos del juego'
+                                type="text"
+                                onChange={(e) => setEstadoJuego(e.target.value)}
                             />
 
                             {
